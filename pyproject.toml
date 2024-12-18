@@ -1,0 +1,16 @@
+[project]
+name = "agent-study-content"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "uvicorn[standard]==0.32.1",
+  "fastapi==0.115.6",
+  "semantic-kernel==1.17.0",
+]
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+include = ["*.py", "**/pyproject.toml"]
