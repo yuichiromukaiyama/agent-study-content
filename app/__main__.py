@@ -4,7 +4,7 @@ from typing import cast
 from semantic_kernel import Kernel
 from semantic_kernel.connectors.ai import FunctionChoiceBehavior
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion, AzureChatPromptExecutionSettings
-from semantic_kernel.contents import ChatHistory
+from semantic_kernel.contents import AuthorRole, ChatHistory, FunctionResultContent
 
 from app.plugins.SafeCodeInterpreterPlugin.native_function import CodeInterpreterPlugin
 from app.utils.config import configs
@@ -21,6 +21,9 @@ async def main(instructions: str) -> None:
     kernel = Kernel()
     chat_history = ChatHistory()
     chat_history.add_user_message(instructions)
+
+    print("-" * 50)
+    print(f"{chat_history.messages[-1].role}\n\n{chat_history.messages[-1].content}")
 
     service_id: str = "default"
 
@@ -50,19 +53,31 @@ async def main(instructions: str) -> None:
         # ReAct する為の Prompt を挿入します
         chat_history.add_system_message(react_prompt)
 
+        # tool_call 履歴を出力する為に最新の位置を記録します
+        last_message_height: int = len(chat_history.messages) - 1
+
         # 推論実行
         completion = await service.get_chat_message_contents(chat_history, settings, kernel=kernel)
+
+        # tool call の実行履歴を出力します
+        tool_msgs = [m for m in chat_history.messages[last_message_height:] if m.role == AuthorRole.TOOL]
+        tool_results = [i for t in tool_msgs for i in t.items if isinstance(i, FunctionResultContent)]
+
+        for result in tool_results:
+            print("-" * 50)
+            print(f"AuthorRole.TOOL\n\n{result.plugin_name}-{result.function_name} {result.result}")
+
         chat_history.add_message(completion[0])
 
-    # 最終的な推論結果を出力します
-    for message in chat_history.messages:
-        print("=" * 100)
-        print(f"{message.role}: {message.content or message.items}")
+        print("-" * 50)
+        print(f"{chat_history.messages[-1].role}\n\n{chat_history.messages[-1].content}")
 
 
 asyncio.run(
-    main("""
+    main(
+        """
 現在のフォルダに README.md を作成しなさい。作成するプログラムは AI Agent の入門スクリプト集です。
 作成ができたら最初のスクリプトを main.py として書きなさい。
-""")
+""".strip()
+    )
 )
